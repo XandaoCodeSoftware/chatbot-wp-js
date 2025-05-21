@@ -101,15 +101,24 @@
       alert(res.ok ? 'Cadastro feito!' : data.error);
     };
 
-    $('loginForm').onsubmit = async e => {
-      e.preventDefault();
-      const username = $('username').value;
-      const password = $('password').value;
-      const res = await fetch('/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
+$('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  const username = $('username').value;
+  const password = $('password').value;
+  const res = await fetch('/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  if (res.ok) {
+    localStorage.setItem('username', username); // salva no navegador
+    carregarDashboard(username);
+  } else {
+    alert(data.error);
+  }
+};
+
       const data = await res.json();
       if (res.ok) {
         $('loginForm').style.display = 'none';
@@ -130,6 +139,30 @@
         alert(data.error);
       }
     };
+    function carregarDashboard(username) {
+  $('loginForm').style.display = 'none';
+  $('registerForm').style.display = 'none';
+  $('toggleForm').style.display = 'none';
+  $('dashboard').style.display = 'block';
+
+  $('logarWp').onclick = () => {
+    window.open(`/qrcode/${username}`, 'qrpopup', 'width=400,height=500');
+    setTimeout(async () => {
+      const dash = await fetch(`/dashboard/${username}`);
+      const html = await dash.text();
+      $('info').innerHTML = html;
+    }, 15000);
+  };
+
+  fetch(`/dashboard/${username}`)
+    .then(res => res.text())
+    .then(html => $('info').innerHTML = html);
+}
+window.onload = () => {
+  const username = localStorage.getItem('username');
+  if (username) carregarDashboard(username);
+};
+
   </script>
 </body>
 </html>
