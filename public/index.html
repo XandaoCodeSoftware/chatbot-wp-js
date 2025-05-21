@@ -12,6 +12,11 @@
       align-items: center;
       height: 100vh;
     }
+    .container {
+      display: flex;
+      gap: 30px;
+      transition: all 0.5s ease;
+    }
     .card {
       background: white;
       padding: 30px;
@@ -22,7 +27,7 @@
     h2 {
       margin-top: 0;
     }
-    input {
+    input, button {
       width: 100%;
       padding: 10px;
       margin: 10px 0;
@@ -30,12 +35,9 @@
       border: 1px solid #ccc;
     }
     button {
-      width: 100%;
-      padding: 10px;
       background: #007bff;
       color: white;
       border: none;
-      border-radius: 5px;
       cursor: pointer;
     }
     button:hover {
@@ -48,32 +50,36 @@
       cursor: pointer;
       color: #007bff;
     }
-    #dashboard {
-      margin-top: 20px;
+    #qrcode {
+      transition: all 0.5s ease;
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2 id="formTitle">Login</h2>
-    <form id="loginForm">
-      <input type="text" id="username" placeholder="Usuário" required>
-      <input type="password" id="password" placeholder="Senha" required>
-      <button type="submit">Entrar</button>
-    </form>
+  <div class="container">
+    <div class="card">
+      <h2 id="formTitle">Login</h2>
+      <form id="loginForm">
+        <input type="text" id="username" placeholder="Usuário" required>
+        <input type="password" id="password" placeholder="Senha" required>
+        <button type="submit">Entrar</button>
+      </form>
 
-    <form id="registerForm" style="display:none;">
-      <input type="text" id="reg_username" placeholder="Novo usuário" required>
-      <input type="password" id="reg_password" placeholder="Nova senha" required>
-      <button type="submit">Cadastrar</button>
-    </form>
+      <form id="registerForm" style="display:none;">
+        <input type="text" id="reg_username" placeholder="Novo usuário" required>
+        <input type="password" id="reg_password" placeholder="Nova senha" required>
+        <button type="submit">Cadastrar</button>
+      </form>
 
-    <div class="link" id="toggleForm">Ainda não tem cadastro? Clique aqui</div>
-    <div id="qrcode"></div>
-    <div id="dashboard" style="display:none;">
-      <button id="logarWp">LOGAR WP</button>
-      <div id="info"></div>
+      <div class="link" id="toggleForm">Ainda não tem cadastro? Clique aqui</div>
+
+      <div id="dashboard" style="display:none;">
+        <button id="logarWp">LOGAR WP</button>
+        <div id="info"></div>
+      </div>
     </div>
+
+    <div id="qrcode"></div>
   </div>
 
   <script>
@@ -101,77 +107,56 @@
       alert(res.ok ? 'Cadastro feito!' : data.error);
     };
 
-$('loginForm').onsubmit = async e => {
-  e.preventDefault();
-  const username = $('username').value;
-  const password = $('password').value;
-  const res = await fetch('/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
-  });
-  const data = await res.json();
-  if (res.ok) {
-    localStorage.setItem('username', username); // salva no navegador
-    carregarDashboard(username);
-  } else {
-    alert(data.error);
-  }
-};
-
+    $('loginForm').onsubmit = async e => {
+      e.preventDefault();
+      const username = $('username').value;
+      const password = $('password').value;
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
       const data = await res.json();
       if (res.ok) {
-        $('loginForm').style.display = 'none';
-        $('registerForm').style.display = 'none';
-        $('toggleForm').style.display = 'none';
-        $('dashboard').style.display = 'block';
-
-$('logarWp').onclick = async () => {
-  const username = localStorage.getItem('username');
-  $('qrcode').innerHTML = 'Carregando QR...';
-  $('dashboard').style.transform = 'translateX(-50%)';
-  const res = await fetch(`/get-qr/${username}`);
-  const data = await res.json();
-  $('qrcode').innerHTML = `<img src="${data.qr}" style="width: 300px">`;
-
-  const check = setInterval(async () => {
-    const ready = await fetch(`/isready/${username}`).then(r => r.json());
-    if (ready.ready) {
-      clearInterval(check);
-      const dash = await fetch(`/dashboard/${username}`);
-      $('info').innerHTML = await dash.text();
-      $('qrcode').innerHTML = ''; // limpa QR
-    }
-  }, 3000);
-};
+        localStorage.setItem('username', username);
+        carregarDashboard(username);
       } else {
         alert(data.error);
       }
     };
+
     function carregarDashboard(username) {
-  $('loginForm').style.display = 'none';
-  $('registerForm').style.display = 'none';
-  $('toggleForm').style.display = 'none';
-  $('dashboard').style.display = 'block';
+      $('loginForm').style.display = 'none';
+      $('registerForm').style.display = 'none';
+      $('toggleForm').style.display = 'none';
+      $('dashboard').style.display = 'block';
 
-  $('logarWp').onclick = () => {
-    window.open(`/qrcode/${username}`, 'qrpopup', 'width=400,height=500');
-    setTimeout(async () => {
-      const dash = await fetch(`/dashboard/${username}`);
-      const html = await dash.text();
-      $('info').innerHTML = html;
-    }, 15000);
-  };
+      $('logarWp').onclick = async () => {
+        $('qrcode').innerHTML = '<p>Gerando QR Code...</p>';
+        const res = await fetch(`/get-qr/${username}`);
+        const data = await res.json();
+        $('qrcode').innerHTML = `<img src="${data.qr}" style="width:300px;">`;
 
-  fetch(`/dashboard/${username}`)
-    .then(res => res.text())
-    .then(html => $('info').innerHTML = html);
-}
-window.onload = () => {
-  const username = localStorage.getItem('username');
-  if (username) carregarDashboard(username);
-};
+        const check = setInterval(async () => {
+          const ready = await fetch(`/isready/${username}`).then(r => r.json());
+          if (ready.ready) {
+            clearInterval(check);
+            $('qrcode').innerHTML = '';
+            const dash = await fetch(`/dashboard/${username}`);
+            $('info').innerHTML = await dash.text();
+          }
+        }, 3000);
+      };
 
+      fetch(`/dashboard/${username}`)
+        .then(res => res.text())
+        .then(html => $('info').innerHTML = html);
+    }
+
+    window.onload = () => {
+      const username = localStorage.getItem('username');
+      if (username) carregarDashboard(username);
+    };
   </script>
 </body>
 </html>
