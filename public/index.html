@@ -69,7 +69,7 @@
     </form>
 
     <div class="link" id="toggleForm">Ainda não tem cadastro? Clique aqui</div>
-
+    <div id="qrcode"></div>
     <div id="dashboard" style="display:none;">
       <button id="logarWp">LOGAR WP</button>
       <div id="info"></div>
@@ -126,15 +126,24 @@ $('loginForm').onsubmit = async e => {
         $('toggleForm').style.display = 'none';
         $('dashboard').style.display = 'block';
 
-        $('logarWp').onclick = () => {
-          window.open(`/qrcode/${username}`, 'qrpopup', 'width=400,height=500');
-          // O popup fecha automaticamente e recarrega o opener quando o QR é escaneado
-          setTimeout(async () => {
-            const dash = await fetch(`/dashboard/${username}`);
-            const html = await dash.text();
-            $('info').innerHTML = html;
-          }, 15000);
-        };
+$('logarWp').onclick = async () => {
+  const username = localStorage.getItem('username');
+  $('qrcode').innerHTML = 'Carregando QR...';
+  $('dashboard').style.transform = 'translateX(-50%)';
+  const res = await fetch(`/get-qr/${username}`);
+  const data = await res.json();
+  $('qrcode').innerHTML = `<img src="${data.qr}" style="width: 300px">`;
+
+  const check = setInterval(async () => {
+    const ready = await fetch(`/isready/${username}`).then(r => r.json());
+    if (ready.ready) {
+      clearInterval(check);
+      const dash = await fetch(`/dashboard/${username}`);
+      $('info').innerHTML = await dash.text();
+      $('qrcode').innerHTML = ''; // limpa QR
+    }
+  }, 3000);
+};
       } else {
         alert(data.error);
       }
