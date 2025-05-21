@@ -29,6 +29,7 @@
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       width: 300px;
+      flex-shrink: 0;
     }
     input, button {
       width: 100%;
@@ -62,6 +63,16 @@
       border-radius: 5px;
       overflow-x: auto;
     }
+    #messages {
+      background: #222;
+      color: #0f0;
+      padding: 15px;
+      border-radius: 8px;
+      height: 400px;
+      overflow-y: auto;
+      font-size: 14px;
+      font-family: monospace;
+    }
   </style>
 </head>
 <body>
@@ -94,6 +105,11 @@
     <div class="card" id="qrcode" style="display:none;">
       <h3>QR Code</h3>
       <div id="qrImage">Gerando QR Code...</div>
+    </div>
+
+    <div class="card" style="flex: 1;">
+      <h3>Mensagens Recebidas</h3>
+      <div id="messages">Esperando mensagens...</div>
     </div>
   </div>
 
@@ -149,23 +165,36 @@
       $('qrcode').style.display = 'block';
 
       const qr = await fetch(`/get-qr/${username}`).then(r => r.json());
-      $('qrImage').innerHTML = `<img src="${qr.qr}">`;
+      if (qr.skip) {
+        $('qrcode').style.display = 'none';
+        await carregarDashboard(username);
+      } else {
+        $('qrImage').innerHTML = `<img src="${qr.qr}">`;
+        const waitReady = setInterval(async () => {
+          const isReady = await fetch(`/isready/${username}`).then(r => r.json());
+          if (isReady.ready) {
+            clearInterval(waitReady);
+            $('qrcode').style.display = 'none';
+            await carregarDashboard(username);
+          }
+        }, 3000);
+      }
 
-      const waitReady = setInterval(async () => {
-        const isReady = await fetch(`/isready/${username}`).then(r => r.json());
-        if (isReady.ready) {
-          clearInterval(waitReady);
-          const data = await fetch(`/dashboard/${username}`).then(r => r.json());
-          $('navLogin').innerText = `Último login: ${new Date(data.last_login).toLocaleString('pt-BR')}`;
-          $('qrcode').style.display = 'none';
-          $('info').innerHTML = `
-            <p><strong>API_USR:</strong> ${data.api_user}</p>
-            <p><strong>API_TK:</strong> ${data.api_token}</p>
-            <p><strong>Exemplo de uso:</strong></p>
-            <pre>https://SEUDOMINIO.com.br${data.example}</pre>
-          `;
-        }
-      }, 3000);
+      setInterval(async () => {
+        const log = await fetch('/api/capturadas').then(r => r.json());
+        $('messages').innerHTML = log.mensagens.map(m => `[${m.timestamp}] ${m.from}: ${m.body}`).join('<br>') || 'Sem mensagens';
+      }, 5000);
+    }
+
+    async function carregarDashboard(username) {
+      const data = await fetch(`/dashboard/${username}`).then(r => r.json());
+      $('navLogin').innerText = `Último login: ${new Date(data.last_login).toLocaleString('pt-BR')}`;
+      $('info').innerHTML = `
+        <p><strong>API_USR:</strong> ${data.api_user}</p>
+        <p><strong>API_TK:</strong> ${data.api_token}</p>
+        <p><strong>Exemplo de uso:</strong></p>
+        <pre>https://SEUDOMINIO.com.br${data.example}</pre>
+      `;
     }
 
     window.onload = () => {
