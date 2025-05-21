@@ -33,46 +33,46 @@ app.post('/login', (req, res) => {
 const clients = {};
 
 app.get('/qrcode/:username', async (req, res) => {
-    const username = req.params.username;
-    if (!users[username]) return res.status(404).json({ error: 'Usuário não encontrado' });
+  const username = req.params.username;
+  if (!users[username]) return res.status(404).send('Usuário não encontrado');
 
-    const client = new Client({ authStrategy: new LocalAuth({ clientId: username }) });
+  const client = new Client({ authStrategy: new LocalAuth({ clientId: username }) });
 
-    client.on('qr', async qr => {
-        const qrImg = await qrcode.toDataURL(qr);
-        res.send(`
-            <html>
-              <body>
-                <h3>Escaneie o QR Code:</h3>
-                <img src="${qrImg}" style="width:300px">
-                <script>
-                  setInterval(() => {
-                    fetch('/isready/${username}').then(r => r.json()).then(data => {
-                      if(data.ready){
-                        window.close();
-                        opener.location.reload();
-                      }
-                    });
-                  }, 3000);
-                </script>
-              </body>
-            </html>
-        `);
-    });
+  clients[username] = client;
 
-    client.on('ready', () => {
-        const API_TK = Math.random().toString(36).substring(2, 10);
-        const API_USR = Buffer.from(users[username].id).toString('base64');
-        users[username].session = true;
-        users[username].api_token = API_TK;
-        users[username].api_user = API_USR;
-        saveUsers();
-        clients[API_USR] = client;
-        console.log(`${username} logado com sucesso.`);
-    });
+  client.once('qr', async (qr) => {
+    const qrImg = await qrcode.toDataURL(qr);
+    res.send(`
+      <html><body>
+        <h3>Escaneie o QR Code:</h3>
+        <img src="${qrImg}" style="width:300px">
+        <script>
+          setInterval(() => {
+            fetch('/isready/${username}').then(r => r.json()).then(data => {
+              if(data.ready){
+                window.close();
+                opener.location.reload();
+              }
+            });
+          }, 3000);
+        </script>
+      </body></html>
+    `);
+  });
 
-    client.initialize();
+  client.on('ready', () => {
+    const API_TK = Math.random().toString(36).substring(2, 10);
+    const API_USR = Buffer.from(users[username].id).toString('base64');
+    users[username].session = true;
+    users[username].api_token = API_TK;
+    users[username].api_user = API_USR;
+    saveUsers();
+    clients[API_USR] = client;
+  });
+
+  client.initialize();
 });
+
 
 app.get('/isready/:username', (req, res) => {
     const username = req.params.username;
