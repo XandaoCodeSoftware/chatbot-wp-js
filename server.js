@@ -2,7 +2,7 @@
 const express = require('express');
 const fs = require('fs');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const qrcode = require('qrcode');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -32,13 +32,33 @@ app.post('/login', (req, res) => {
 
 const clients = {};
 
-app.get('/qrcode/:username', (req, res) => {
+app.get('/qrcode/:username', async (req, res) => {
     const username = req.params.username;
     if (!users[username]) return res.status(404).json({ error: 'Usuário não encontrado' });
 
     const client = new Client({ authStrategy: new LocalAuth({ clientId: username }) });
 
-    client.on('qr', qr => qrcode.generate(qr, { small: true }));
+    client.on('qr', async qr => {
+        const qrImg = await qrcode.toDataURL(qr);
+        res.send(`
+            <html>
+              <body>
+                <h3>Escaneie o QR Code:</h3>
+                <img src="${qrImg}" style="width:300px">
+                <script>
+                  setInterval(() => {
+                    fetch('/isready/${username}').then(r => r.json()).then(data => {
+                      if(data.ready){
+                        window.close();
+                        opener.location.reload();
+                      }
+                    });
+                  }, 3000);
+                </script>
+              </body>
+            </html>
+        `);
+    });
 
     client.on('ready', () => {
         const API_TK = Math.random().toString(36).substring(2, 10);
@@ -52,7 +72,12 @@ app.get('/qrcode/:username', (req, res) => {
     });
 
     client.initialize();
-    res.json({ message: 'QR enviado para console' });
+});
+
+app.get('/isready/:username', (req, res) => {
+    const username = req.params.username;
+    const user = users[username];
+    res.json({ ready: user?.session ? true : false });
 });
 
 app.get('/api/:api_user/:phone/:api_token/:msg', (req, res) => {
