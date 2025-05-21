@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login e Cadastro</title>
+</head>
+<body>
+  <h2>Cadastro</h2>
+  <form id="registerForm">
+    <input type="text" id="reg_username" placeholder="Novo usuário" required><br>
+    <input type="password" id="reg_password" placeholder="Nova senha" required><br>
+    <button type="submit">Cadastrar</button>
+  </form>
+
+  <h2>Login</h2>
+  <form id="loginForm">
+    <input type="text" id="username" placeholder="Usuário" required><br>
+    <input type="password" id="password" placeholder="Senha" required><br>
+    <button type="submit">Entrar</button>
+  </form>
+
+  <div id="dashboard" style="display:none;">
+    <button id="logarWp">LOGAR WP</button>
+    <div id="info"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    $('registerForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const username = $('reg_username').value;
+      const password = $('reg_password').value;
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      alert(res.ok ? 'Usuário cadastrado com sucesso!' : data.error);
+    };
+
+    $('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const username = $('username').value;
+      const password = $('password').value;
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        $('loginForm').style.display = 'none';
+        $('registerForm').style.display = 'none';
+        $('dashboard').style.display = 'block';
+
+        $('logarWp').onclick = async () => {
+          await fetch(`/qrcode/${username}`);
+          alert('QR gerado no console do servidor');
+          setTimeout(async () => {
+            const dash = await fetch(`/dashboard/${username}`);
+            const html = await dash.text();
+            $('info').innerHTML = html;
+          }, 10000);
+        };
+      } else {
+        alert(data.error);
+      }
+    };
+  </script>
+</body>
+</html>
